@@ -82,7 +82,7 @@ class _ImitateGameScreenState extends State<ImitateGameScreen> {
           children: [
             ScoreIndicator(),
             ArrowSequenceCarousel(),
-            ControlPad(),
+            ControlPad(size: 300),
           ],
         ),
       ),
@@ -91,6 +91,10 @@ class _ImitateGameScreenState extends State<ImitateGameScreen> {
 }
 
 class ControlPad extends StatelessWidget {
+  final double size;
+
+  const ControlPad({Key key, @required this.size}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final game = Provider.of<ImitateGameController>(context);
@@ -101,8 +105,8 @@ class ControlPad extends StatelessWidget {
       clipBehavior: Clip.antiAliasWithSaveLayer,
       elevation: 2,
       child: Container(
-        width: 240,
-        height: 240,
+        width: size,
+        height: size,
         child: IgnorePointer(
           ignoring: game.state != GameState.playerTurn,
           child: Stack(
@@ -140,9 +144,10 @@ class ControlPad extends StatelessWidget {
             game.acceptInput(arrow);
           },
           child: ArrowButton(
+            size: size,
             highlighted: arrow == latestArrow,
             arrow: arrow,
-            highlightPulseDuration: game.waitingTime * 0.5,
+            highlightPulseDuration: game.waitingTime * 0.7,
           ),
         ),
       );
@@ -156,11 +161,13 @@ class ArrowButton extends StatefulWidget {
     @required this.arrow,
     this.highlighted = false,
     @required this.highlightPulseDuration,
+    @required this.size,
   }) : super(key: key);
 
   final Arrow arrow;
   final bool highlighted;
   final Duration highlightPulseDuration;
+  final double size;
 
   @override
   _ArrowButtonState createState() => _ArrowButtonState();
@@ -184,19 +191,21 @@ class _ArrowButtonState extends State<ArrowButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      decoration: ShapeDecoration(
-        shape: BeveledRectangleBorder(
-          borderRadius: BorderRadius.circular(60 * sqrt2),
-        ),
-        color: widget.arrow.color.withOpacity(highlighted ? 0.4 : 0.15),
-      ),
-      width: 120 * sqrt2,
-      height: 120 * sqrt2,
-      child: Icon(widget.arrow.icon,
-          size: 60, color: highlighted ? widget.arrow.color : Colors.white12),
+    return AnimatedOpacity(
+      opacity: highlighted ? 1.0 : 0.3,
       duration: Duration(milliseconds: 200),
       curve: Curves.fastOutSlowIn,
+      child: Container(
+        decoration: ShapeDecoration(
+          shape: BeveledRectangleBorder(
+            borderRadius: BorderRadius.circular(widget.size * 0.25 * sqrt2),
+          ),
+          color: widget.arrow.color.withOpacity(0.5),
+        ),
+        width: widget.size * 0.5 * sqrt2,
+        height: widget.size * 0.5 * sqrt2,
+        child: Icon(widget.arrow.icon, size: 60, color: Colors.white),
+      ),
     );
   }
 }
@@ -214,11 +223,14 @@ class ScoreIndicator extends StatelessWidget {
       onTap: () {
         game.startGame();
       },
-      child: Column(
-        children: [
-          Text('$score', style: textTheme.headline3),
-          Text(game.state.toString()),
-        ],
+      child: Container(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text('$score', style: textTheme.headline3),
+//          Text(game.state.toString()),
+          ],
+        ),
       ),
     );
   }
