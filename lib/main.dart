@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2020 Akmal Muhaimin
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 import 'dart:async';
 import 'dart:math';
 
@@ -60,7 +82,6 @@ class _ImitateGameScreenState extends State<ImitateGameScreen> {
           children: [
             ScoreIndicator(),
             ArrowSequenceCarousel(),
-            SizedBox(height: 16),
             ControlPad(),
           ],
         ),
@@ -82,37 +103,101 @@ class ControlPad extends StatelessWidget {
       child: Container(
         width: 240,
         height: 240,
-        padding: EdgeInsets.all(8),
         child: IgnorePointer(
           ignoring: game.state != GameState.playerTurn,
           child: Stack(
-            children: _buildArrowButtons(game),
+            children: _buildArrowButtons(context, game),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildArrowButtons(ImitateGameController game) {
+  List<Widget> _buildArrowButtons(
+      BuildContext context, ImitateGameController game) {
     int i = 0;
+
+    const shift = 1 + sqrt2;
+
+    Arrow latestArrow;
+    if (game.state == GameState.computerTurn && game.showingIndex > 0) {
+      latestArrow = game.generatedArrows[game.showingIndex - 1];
+    } else if (game.state == GameState.playerTurn &&
+        game.playerArrows.isNotEmpty) {
+      latestArrow = game.playerArrows.last;
+    }
+
     return Arrow.values.map((arrow) {
       return Align(
         alignment: [
-          Alignment.topCenter,
-          Alignment.centerLeft,
-          Alignment.bottomCenter,
-          Alignment.centerRight
+          Alignment(0, -shift),
+          Alignment(-shift, 0),
+          Alignment(0, shift),
+          Alignment(shift, 0),
         ][i++],
-        child: IconButton(
-          icon: Icon(arrow.icon),
-          iconSize: 60,
-          color: arrow.color,
-          onPressed: () {
+        child: GestureDetector(
+          onTap: () {
             game.acceptInput(arrow);
           },
+          child: ArrowButton(
+            highlighted: arrow == latestArrow,
+            arrow: arrow,
+            highlightPulseDuration: game.waitingTime * 0.5,
+          ),
         ),
       );
     }).toList();
+  }
+}
+
+class ArrowButton extends StatefulWidget {
+  const ArrowButton({
+    Key key,
+    @required this.arrow,
+    this.highlighted = false,
+    @required this.highlightPulseDuration,
+  }) : super(key: key);
+
+  final Arrow arrow;
+  final bool highlighted;
+  final Duration highlightPulseDuration;
+
+  @override
+  _ArrowButtonState createState() => _ArrowButtonState();
+}
+
+class _ArrowButtonState extends State<ArrowButton> {
+  bool highlighted = false;
+
+  @override
+  void didUpdateWidget(ArrowButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.highlighted) {
+      highlighted = true;
+      Future.delayed(widget.highlightPulseDuration, () {
+        setState(() {
+          highlighted = false;
+        });
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      decoration: ShapeDecoration(
+        shape: BeveledRectangleBorder(
+          borderRadius: BorderRadius.circular(60 * sqrt2),
+        ),
+        color: widget.arrow.color.withOpacity(highlighted ? 0.4 : 0.15),
+      ),
+      width: 120 * sqrt2,
+      height: 120 * sqrt2,
+      child: Icon(widget.arrow.icon,
+          size: 60, color: highlighted ? widget.arrow.color : Colors.white12),
+      duration: Duration(milliseconds: 200),
+      curve: Curves.fastOutSlowIn,
+    );
   }
 }
 
@@ -200,7 +285,7 @@ class ArrowSequenceCarousel extends StatelessWidget {
   void _scrollToLatest(CarouselSlider carousel, int index) async {
     await Future.delayed(Duration(milliseconds: 10));
     carousel?.animateToPage(index < 1 ? 0 : index - 1,
-        duration: mediumAnimDuration, curve: Curves.easeOutBack);
+        duration: mediumAnimDuration, curve: Curves.easeOutCubic);
   }
 }
 
@@ -215,6 +300,8 @@ class ImitateGameController extends ChangeNotifier {
 
   Timer _autoScrollTimer;
 
+  Duration waitingTime = Duration(milliseconds: 700);
+
   GameState get state => _state;
 
   int get showingIndex => _showingIndex;
@@ -222,6 +309,7 @@ class ImitateGameController extends ChangeNotifier {
   int get length => generatedArrows.length;
 
   void startGame() {
+    _autoScrollTimer?.cancel();
     resetArrowList();
     _computerTurn();
   }
@@ -242,11 +330,12 @@ class ImitateGameController extends ChangeNotifier {
 
   void _endGame() {
     _state = GameState.ended;
+    HapticFeedback.mediumImpact();
     notifyListeners();
   }
 
   void setAutoScrollTimer() {
-    _autoScrollTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _autoScrollTimer = Timer.periodic(waitingTime, (timer) {
       _showingIndex++;
       if (_showingIndex > generatedArrows.length) {
         timer.cancel();
@@ -283,8 +372,8 @@ class ImitateGameController extends ChangeNotifier {
     if (correctArrow == arrowFromInput) {
       playerArrows.add(arrowFromInput);
       if (generatedArrows.length == playerArrows.length) {
-        HapticFeedback.mediumImpact();
-        Future.delayed(Duration(seconds: 1), _computerTurn);
+        HapticFeedback.vibrate();
+        Future.delayed(waitingTime, _computerTurn);
       }
     } else {
       playerArrows.add(arrowFromInput);
