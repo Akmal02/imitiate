@@ -312,7 +312,7 @@ class ImitateGameController extends ChangeNotifier {
 
   Timer _autoScrollTimer;
 
-  Duration waitingTime = Duration(milliseconds: 700);
+  Duration waitingTime;
 
   GameState get state => _state;
 
@@ -330,8 +330,9 @@ class ImitateGameController extends ChangeNotifier {
     _state = GameState.computerTurn;
     _showingIndex = 0;
     notifyListeners();
-    addNewRandomArrow();
-    setAutoScrollTimer();
+    _setTiming();
+    _addNewRandomArrow();
+    _setAutoScrollTimer();
   }
 
   void _playerTurn() {
@@ -346,7 +347,7 @@ class ImitateGameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAutoScrollTimer() {
+  void _setAutoScrollTimer() {
     _autoScrollTimer = Timer.periodic(waitingTime, (timer) {
       _showingIndex++;
       if (_showingIndex > generatedArrows.length) {
@@ -358,7 +359,20 @@ class ImitateGameController extends ChangeNotifier {
     });
   }
 
-  void addNewRandomArrow() {
+  void _setTiming() {
+    final level = generatedArrows.length;
+    if (level < 7) {
+      waitingTime = Duration(seconds: 1);
+    } else if (level < 15) {
+      waitingTime = Duration(milliseconds: 700);
+    } else if (level < 25) {
+      waitingTime = Duration(milliseconds: 500);
+    } else {
+      waitingTime = Duration(milliseconds: 300);
+    }
+  }
+
+  void _addNewRandomArrow() {
     generatedArrows.add(_generateNewArrow());
   }
 
