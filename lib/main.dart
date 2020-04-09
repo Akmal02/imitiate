@@ -24,6 +24,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -50,28 +51,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class ImitateGameScreen extends StatefulWidget {
-  @override
-  _ImitateGameScreenState createState() => _ImitateGameScreenState();
-}
-
-class _ImitateGameScreenState extends State<ImitateGameScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _startGame();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  void _startGame() async {
-    await Future.delayed(Duration(seconds: 1));
-    Provider.of<ImitateGameController>(context, listen: false).startGame();
-  }
-
+class ImitateGameScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,26 +72,58 @@ class _ImitateGameScreenState extends State<ImitateGameScreen> {
 
 class ControlPad extends StatelessWidget {
   final double size;
+  final _containerKey = GlobalKey();
 
-  const ControlPad({Key key, @required this.size}) : super(key: key);
+  ControlPad({Key key, @required this.size}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final game = Provider.of<ImitateGameController>(context);
 
-    return Material(
-      type: MaterialType.circle,
-      color: Colors.grey.shade900,
-      clipBehavior: Clip.antiAliasWithSaveLayer,
-      elevation: 2,
-      child: Container(
-        width: size,
-        height: size,
-        child: IgnorePointer(
-          ignoring: game.state != GameState.playerTurn,
-          child: Stack(
-            children: _buildArrowButtons(context, game),
-          ),
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      child: Material(
+        type: MaterialType.circle,
+        color: Colors.grey.shade900,
+        clipBehavior: Clip.antiAliasWithSaveLayer,
+        elevation: 2,
+        child: AnimatedCrossFade(
+          key: _containerKey,
+          duration: mediumAnimDuration,
+          sizeCurve: Curves.fastOutSlowIn,
+          crossFadeState: game.state == GameState.idle
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          firstChild: _buildPlayButton(context, game),
+          secondChild: _buildControlPad(context, game),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayButton(BuildContext context, ImitateGameController game) {
+    return Container(
+      width: size * 0.7,
+      height: size * 0.7,
+      child: InkWell(
+        splashColor: Colors.transparent,
+        onTap: game.state == GameState.idle ? () => game.startGame() : null,
+        child: Icon(Icons.play_arrow, size: 60),
+      ),
+    );
+  }
+
+  Widget _buildControlPad(BuildContext context, ImitateGameController game) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      child: IgnorePointer(
+        ignoring: game.state == GameState.computerTurn,
+        child: Stack(
+          children: _buildArrowButtons(context, game),
         ),
       ),
     );
@@ -140,8 +152,11 @@ class ControlPad extends StatelessWidget {
           Alignment(shift, 0),
         ][i++],
         child: GestureDetector(
-          onTap: () {
-            game.acceptInput(arrow);
+          onTapDown: (_) {
+            if (game.state == GameState.ended)
+              game.resetGame();
+            else
+              game.acceptInput(arrow);
           },
           child: ArrowButton(
             size: size,
@@ -213,25 +228,78 @@ class _ArrowButtonState extends State<ArrowButton> {
 class ScoreIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final game = Provider.of<ImitateGameController>(context);
+
+    return Container(
+      height: 120,
+      alignment: Alignment.center,
+      child: AnimatedSwitcher(
+        transitionBuilder: _buildFadeThroughTransition,
+        duration: mediumAnimDuration,
+        child: _buildContent(context, game),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, ImitateGameController game) {
+    final playerSucceed = game.state == GameState.playerTurn &&
+        game.playerArrows.length == game.generatedArrows.length;
+
+    final playerFailed = game.state == GameState.ended;
+
+    final gameNotStarted = game.state == GameState.idle;
+
+    final computerFirstTurn =
+        game.state == GameState.computerTurn && game.showingIndex == 0;
+
+    final playerFirstTurn =
+        game.state == GameState.playerTurn && game.playerArrows.isEmpty;
 
     final score = game.state == GameState.computerTurn
         ? game.showingIndex
         : game.playerArrows.length;
-    return InkWell(
-      onTap: () {
-        game.startGame();
-      },
-      child: Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text('$score', style: textTheme.headline3),
-//          Text(game.state.toString()),
-          ],
-        ),
-      ),
+
+    final textTheme = Theme.of(context).textTheme;
+    final lightText = textTheme.headline4.copyWith(fontWeight: FontWeight.w300);
+
+    if (gameNotStarted) {
+      return Text('Imitate', style: lightText.copyWith(letterSpacing: 3));
+    } else if (playerSucceed) {
+      return Icon(
+        Icons.sentiment_very_satisfied,
+        size: 56,
+        color: Colors.yellow,
+      );
+    } else if (playerFailed) {
+      return Column(
+        children: [
+          Icon(
+            Icons.sentiment_very_dissatisfied,
+            size: 56,
+            color: Colors.red,
+          ),
+          SizedBox(height: 8),
+          Text('Your score is $score.', style: textTheme.bodyText1),
+          SizedBox(height: 4),
+          Text('Press any button to restart', style: textTheme.caption),
+        ],
+      );
+    } else if (computerFirstTurn) {
+      return Text('Watch!', style: lightText);
+    } else if (playerFirstTurn) {
+      return Text('Your turn', style: lightText);
+    } else {
+      return Text('$score',
+          style: textTheme.headline3.copyWith(fontWeight: FontWeight.w300));
+    }
+  }
+
+  Widget _buildFadeThroughTransition(widget, animation) {
+    return FadeTransition(
+      opacity: CurvedAnimation(
+          curve: Interval(0.5, 1, curve: Curves.fastOutSlowIn),
+          parent: animation),
+      child: widget,
     );
   }
 }
@@ -244,27 +312,30 @@ class ArrowSequenceCarousel extends StatelessWidget {
       ignoring: true,
       // Somehow AnimatedCrossFade and SnimatedSwitcher
       // doesn't work well according to intended needs.
-      child: Stack(
-        children: [
-          AnimatedOpacity(
-            opacity:
-                game.state == GameState.computerTurn && game.showingIndex > 0
-                    ? 1
-                    : 0,
-            duration: mediumAnimDuration,
-            child: _buildArrows(
-                game.generatedArrows, game.showingIndex, game.state),
-          ),
-          AnimatedOpacity(
-            opacity: game.state != GameState.computerTurn &&
-                    game.playerArrows.length > 0
-                ? 1
-                : 0,
-            duration: mediumAnimDuration,
-            child: _buildArrows(
-                game.playerArrows, game.playerArrows.length, game.state),
-          ),
-        ],
+      child: Padding(
+        padding: EdgeInsets.only(bottom: 24),
+        child: Stack(
+          children: [
+            AnimatedOpacity(
+              opacity:
+                  game.state == GameState.computerTurn && game.showingIndex > 0
+                      ? 1
+                      : 0,
+              duration: mediumAnimDuration,
+              child: _buildArrows(
+                  game.generatedArrows, game.showingIndex, game.state),
+            ),
+            AnimatedOpacity(
+              opacity: game.state != GameState.computerTurn &&
+                      game.playerArrows.length > 0
+                  ? 1
+                  : 0,
+              duration: mediumAnimDuration,
+              child: _buildArrows(
+                  game.playerArrows, game.playerArrows.length, game.state),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -312,7 +383,7 @@ class ImitateGameController extends ChangeNotifier {
 
   Timer _autoScrollTimer;
 
-  Duration waitingTime;
+  Duration waitingTime = Duration(seconds: 1);
 
   GameState get state => _state;
 
@@ -324,6 +395,13 @@ class ImitateGameController extends ChangeNotifier {
     _autoScrollTimer?.cancel();
     resetArrowList();
     _computerTurn();
+  }
+
+  void resetGame() {
+    _autoScrollTimer?.cancel();
+    resetArrowList();
+    _state = GameState.idle;
+    notifyListeners();
   }
 
   void _computerTurn() {
