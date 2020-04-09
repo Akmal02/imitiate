@@ -20,34 +20,27 @@
  * SOFTWARE.
  */
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import 'game_controller.dart';
-import 'game_screen.dart';
+import 'arrow_sequence_carousel.dart';
+import 'control_pad.dart';
+import 'score_indicator.dart';
 
-void main() {
-  runApp(ImitateApp());
-}
-
-class ImitateApp extends StatelessWidget {
+class ImitateGameScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ImitateGameController(),
-      child: MaterialApp(
-        title: 'Imitate',
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          textTheme: Typography.englishLike2018,
-          splashFactory: InkRipple.splashFactory,
+    return Scaffold(
+      backgroundColor: Colors.blueGrey.shade900,
+      body: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ScoreIndicator(),
+            ArrowSequenceCarousel(),
+            ControlPad(size: 300),
+          ],
         ),
-        home: ImitateGameScreen(),
       ),
     );
   }
 }
-
-const mediumAnimDuration = Duration(milliseconds: 300);

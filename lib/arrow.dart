@@ -20,34 +20,18 @@
  * SOFTWARE.
  */
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import 'game_controller.dart';
-import 'game_screen.dart';
+class Arrow {
+  const Arrow(this.color, this.icon);
 
-void main() {
-  runApp(ImitateApp());
+  final Color color;
+  final IconData icon;
+
+  static const values = [up, left, down, right];
+
+  static const up = Arrow(Colors.redAccent, Icons.arrow_upward);
+  static const left = Arrow(Colors.yellowAccent, Icons.arrow_back);
+  static const down = Arrow(Colors.blueAccent, Icons.arrow_downward);
+  static const right = Arrow(Colors.greenAccent, Icons.arrow_forward);
 }
-
-class ImitateApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ImitateGameController(),
-      child: MaterialApp(
-        title: 'Imitate',
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          textTheme: Typography.englishLike2018,
-          splashFactory: InkRipple.splashFactory,
-        ),
-        home: ImitateGameScreen(),
-      ),
-    );
-  }
-}
-
-const mediumAnimDuration = Duration(milliseconds: 300);
