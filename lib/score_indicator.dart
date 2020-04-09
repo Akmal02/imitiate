@@ -31,13 +31,28 @@ class ScoreIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = Provider.of<ImitateGameController>(context);
 
-    return Container(
-      height: 120,
-      alignment: Alignment.center,
-      child: AnimatedSwitcher(
-        transitionBuilder: _buildFadeThroughTransition,
-        duration: mediumAnimDuration,
-        child: _buildContent(context, game),
+    return WillPopScope(
+      onWillPop: () async {
+        if (game.state != GameState.idle) {
+          game.resetGame();
+          return false;
+        } else {
+          return true;
+        }
+      },
+      child: Container(
+        height: 132,
+        alignment: Alignment.center,
+        child: GestureDetector(
+          onTap: () {
+            if (game.state == GameState.ended) game.startGame();
+          },
+          child: AnimatedSwitcher(
+            transitionBuilder: _buildFadeThroughTransition,
+            duration: mediumAnimDuration,
+            child: _buildContent(context, game),
+          ),
+        ),
       ),
     );
   }
@@ -80,9 +95,13 @@ class ScoreIndicator extends StatelessWidget {
             color: Colors.red,
           ),
           SizedBox(height: 8),
-          Text('Your score is $score', style: textTheme.bodyText1),
+//          Text('Your score is', style: textTheme.bodyText1),
+          Text.rich(TextSpan(children: [
+            TextSpan(text: 'Your score is ', style: textTheme.bodyText1),
+            TextSpan(text: '$score', style: textTheme.headline6),
+          ])),
           SizedBox(height: 4),
-          Text('Tap any button to restart', style: textTheme.caption),
+          Text('Tap here to restart', style: textTheme.caption),
         ],
       );
     } else if (computerFirstTurn) {

@@ -25,6 +25,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:imitate/game_controller.dart';
 import 'package:provider/provider.dart';
+
 import 'arrow.dart';
 import 'arrow_button.dart';
 import 'main.dart';
@@ -116,10 +117,7 @@ class ControlPad extends StatelessWidget {
           arrow: arrow,
           highlightPulseDuration: game.waitingTime * 0.7,
           onTap: () {
-            if (game.state == GameState.ended)
-              game.resetGame();
-            else
-              game.acceptInput(arrow);
+            game.acceptInput(arrow);
           },
         ),
       );
