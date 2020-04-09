@@ -151,19 +151,17 @@ class ControlPad extends StatelessWidget {
           Alignment(0, shift),
           Alignment(shift, 0),
         ][i++],
-        child: GestureDetector(
-          onTapDown: (_) {
+        child: ArrowButton(
+          size: size,
+          highlighted: arrow == latestArrow,
+          arrow: arrow,
+          highlightPulseDuration: game.waitingTime * 0.7,
+          onTap: () {
             if (game.state == GameState.ended)
               game.resetGame();
             else
               game.acceptInput(arrow);
           },
-          child: ArrowButton(
-            size: size,
-            highlighted: arrow == latestArrow,
-            arrow: arrow,
-            highlightPulseDuration: game.waitingTime * 0.7,
-          ),
         ),
       );
     }).toList();
@@ -177,12 +175,14 @@ class ArrowButton extends StatefulWidget {
     this.highlighted = false,
     @required this.highlightPulseDuration,
     @required this.size,
+    @required this.onTap,
   }) : super(key: key);
 
   final Arrow arrow;
   final bool highlighted;
   final Duration highlightPulseDuration;
   final double size;
+  final VoidCallback onTap;
 
   @override
   _ArrowButtonState createState() => _ArrowButtonState();
@@ -206,20 +206,28 @@ class _ArrowButtonState extends State<ArrowButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: highlighted ? 1.0 : 0.3,
-      duration: Duration(milliseconds: 200),
-      curve: Curves.fastOutSlowIn,
-      child: Container(
-        decoration: ShapeDecoration(
-          shape: BeveledRectangleBorder(
-            borderRadius: BorderRadius.circular(widget.size * 0.25 * sqrt2),
+    return GestureDetector(
+      onTapDown: (_) => widget.onTap(),
+      onTapUp: (_) {
+        setState(() {
+          highlighted = false;
+        });
+      },
+      child: AnimatedOpacity(
+        opacity: highlighted ? 1.0 : 0.3,
+        duration: Duration(milliseconds: 200),
+        curve: Curves.fastOutSlowIn,
+        child: Container(
+          decoration: ShapeDecoration(
+            shape: BeveledRectangleBorder(
+              borderRadius: BorderRadius.circular(widget.size * 0.25 * sqrt2),
+            ),
+            color: widget.arrow.color.withOpacity(0.5),
           ),
-          color: widget.arrow.color.withOpacity(0.5),
+          width: widget.size * 0.5 * sqrt2,
+          height: widget.size * 0.5 * sqrt2,
+          child: Icon(widget.arrow.icon, size: 60, color: Colors.white),
         ),
-        width: widget.size * 0.5 * sqrt2,
-        height: widget.size * 0.5 * sqrt2,
-        child: Icon(widget.arrow.icon, size: 60, color: Colors.white),
       ),
     );
   }
@@ -279,7 +287,7 @@ class ScoreIndicator extends StatelessWidget {
             color: Colors.red,
           ),
           SizedBox(height: 8),
-          Text('Your score is $score.', style: textTheme.bodyText1),
+          Text('Your score is $score', style: textTheme.bodyText1),
           SizedBox(height: 4),
           Text('Press any button to restart', style: textTheme.caption),
         ],
